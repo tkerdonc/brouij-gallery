@@ -25,20 +25,20 @@ main =
 type alias Model =
     { textGallery : Gallery.State
     , imageGallery : Gallery.State
-    , message: String
+    , textList : List String
+    , urlList : List String
     }
-
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { textGallery = Gallery.init (List.length textSlides)
-      , imageGallery = Gallery.init (List.length imageSlides)
-      , message = ""
+    ( { textGallery = Gallery.init (List.length (textSlides []))
+      , imageGallery = Gallery.init (List.length (imageSlides []))
+      , textList = [""]
+      , urlList = [""]
       }
-    , FetchData
+    , Cmd.none
     )
-
 
 type alias ImageInfo =
   { path : String
@@ -48,10 +48,8 @@ type alias ImageInfo =
 type Msg
     = TextGalleryMsg Gallery.Msg
     | ImageGalleryMsg Gallery.Msg
-    | FetchData
     | ErrorOccurred String
-    | DataFetched (List ImageInfo)
-
+    | DataFetched (Result Http.Error (List ImageInfo))
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -66,14 +64,11 @@ update msg model =
             ( { model | imageGallery = Gallery.update imageGalleryMsg model.imageGallery }
             , Cmd.none
             )
-        FetchData ->
-          ( { model | message = "Initiating data fetch!" }, fetchData )
         ErrorOccurred errorMessage ->
-          ( { model | message = "Oops! An error occurred: " ++ errorMessage }, Cmd.none )
-        DataFetched configdata ->
-          ( { model | configdata = configdata, message = "The data has been fetched!" }, Cmd.none)
-
-
+          ( model, Cmd.none )
+        DataFetched (result, imageList) ->
+          ( { model | urlList = imageListUrlDecoder imageList }
+          )
 
 view : Model -> Browser.Document Msg
 view model =
@@ -82,21 +77,19 @@ view model =
         [ main_ []
             [ styling
             , Html.map ImageGalleryMsg <|
-                Gallery.view imageConfig model.imageGallery [ Gallery.Arrows ] imageSlides
+                Gallery.view imageConfig model.imageGallery [ Gallery.Arrows ] (imageSlides model.urlList)
             , Html.map TextGalleryMsg <|
-                Gallery.view textConfig model.textGallery [] textSlides
+                Gallery.view textConfig model.textGallery [] (textSlides model.textList)
             ]
         ]
     }
 
 
-textSlides : List ( String, Html msg )
-textSlides =
-    List.map (\x -> ( x.path, textSlide x )) imageListDecoder
+textSlides texts =
+    List.map (\x -> ( x, textSlide x )) texts
 
 
-imageSlides : List ( String, Html msg )
-imageSlides =
+imageSlides images =
     List.map (\x -> ( x, Image.slide x Image.Cover )) images
 
 
@@ -125,29 +118,37 @@ textConfig =
         }
 
 
-images : List String
-images =
-    [ "images/Ambrym_South_Pacific_Ocean.jpg"
-    , "images/Irrawaddy_Delta_Myanmar.jpg"
-    , "images/Uyuni_salt_flat_Bolivia.jpg"
-    ]
-
-
-imageInfoDecoder : Decoder imageInfo
 imageInfoDecoder =
-  map2 ImageInfo
+  Json.Decode.map2 ImageInfo
+    (field "name" string)
     (field "path" string)
+
+imageTextDecoder : Decoder ImageInfo
+imageTextDecoder =
+  Json.Decode.map ImageInfo
     (field "name" string)
 
-imageListDecoder : Decoder (List imageInfo)
-imageListDecoder =
-  Json.Decode.list imageInfoDecoder
+imageListTextDecoder : Decoder (List ImageInfo)
+imageListTextDecoder =
+  Json.Decode.list imageTextDecoder
+
+imageUrlDecoder : Decoder ImageInfo
+imageUrlDecoder =
+  Json.Decode.map ImageInfo
+    (field "path" string)
+
+imageListUrlDecoder : Decoder (List ImageInfo)
+imageListUrlDecoder =
+  Json.Decode.list imageUrlDecoder
+
 
 fetchData : Cmd Msg
 fetchData =
-  Http.get imageListDecoder "https://localhost/gallery/json/images"
-    |> Task.mapError Err
-    |> Task.perform ErrorOccurred DataFetched
+  Http.get
+    { url = "https://localhost/gallery/json/images"
+    , expect = Http.expectJson DataFetched (Json.Decode.list imageInfoDecoder)
+    }
+
 
 styling : Html msg
 styling =
