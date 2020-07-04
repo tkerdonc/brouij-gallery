@@ -34,15 +34,15 @@ init : () -> ( Model, Cmd Msg )
 init _ =
     ( { textGallery = Gallery.init (List.length (textSlides []))
       , imageGallery = Gallery.init (List.length (imageSlides []))
-      , textList = [""]
-      , urlList = [""]
+      , textList = []
+      , urlList = []
       }
-    , Cmd.none
+    , doFetchData
     )
 
 type alias ImageInfo =
   { path : String
-  , name : String
+  , text : String
   }
 
 type Msg
@@ -66,13 +66,14 @@ update msg model =
             )
         ErrorOccurred errorMessage ->
           ( model, Cmd.none )
-        DataFetched (result, imageList) ->
-          ( { model | urlList = imageListUrlDecoder imageList }
+        DataFetched result ->
+          ( { model | urlList = decodeImageTextList result, textList = decodeImageUrlList result }
+            , Cmd.none
           )
 
 view : Model -> Browser.Document Msg
 view model =
-    { title = "elm-gallery"
+    { title = "Gallery"
     , body =
         [ main_ []
             [ styling
@@ -120,32 +121,25 @@ textConfig =
 
 imageInfoDecoder =
   Json.Decode.map2 ImageInfo
-    (field "name" string)
+    (field "text" string)
     (field "path" string)
 
-imageTextDecoder : Decoder ImageInfo
-imageTextDecoder =
-  Json.Decode.map ImageInfo
-    (field "name" string)
+decodeImageUrlList imageList =
+  case imageList of
+    Ok imageListResp ->
+     List.map (\x -> ( x.path )) imageListResp
+    _ -> ["fail02"]
 
-imageListTextDecoder : Decoder (List ImageInfo)
-imageListTextDecoder =
-  Json.Decode.list imageTextDecoder
+decodeImageTextList imageList =
+  case imageList of
+    Ok imageListResp ->
+     List.map (\x -> ( x.text )) imageListResp
+    _ -> ["fail0101"]
 
-imageUrlDecoder : Decoder ImageInfo
-imageUrlDecoder =
-  Json.Decode.map ImageInfo
-    (field "path" string)
-
-imageListUrlDecoder : Decoder (List ImageInfo)
-imageListUrlDecoder =
-  Json.Decode.list imageUrlDecoder
-
-
-fetchData : Cmd Msg
-fetchData =
+doFetchData : Cmd Msg
+doFetchData =
   Http.get
-    { url = "https://localhost/gallery/json/images"
+    { url = "/json/images"
     , expect = Http.expectJson DataFetched (Json.Decode.list imageInfoDecoder)
     }
 
