@@ -41,8 +41,9 @@ init _ =
     )
 
 type alias ImageInfo =
-  { path : String
-  , text : String
+  {
+    text : String,
+    path : String
   }
 
 type Msg
@@ -56,12 +57,12 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         TextGalleryMsg textGalleryMsg ->
-            ( { model | textGallery = Gallery.update textGalleryMsg model.textGallery }
+            ( model
             , Cmd.none
             )
-
         ImageGalleryMsg imageGalleryMsg ->
-            ( { model | imageGallery = Gallery.update imageGalleryMsg model.imageGallery }
+            ( { model | imageGallery = Gallery.update imageGalleryMsg model.imageGallery,
+                        textGallery = Gallery.update imageGalleryMsg model.textGallery }
             , Cmd.none
             )
         ErrorOccurred errorMessage ->
@@ -99,7 +100,7 @@ imageSlides images =
 
 textSlide : String -> Html msg
 textSlide slide =
-    article [] [ h3 [] [ text "Title" ], p [] [ text slide ] ]
+    article [] [ h3 [] [ text "satan.beer" ], p [] [ text slide ] ]
 
 
 imageConfig : Gallery.Config
@@ -131,13 +132,13 @@ decodeImageUrlList imageList =
   case imageList of
     Ok imageListResp ->
      List.map (\x -> ( x.path )) imageListResp
-    _ -> ["images/no_image.png"]
+    _ -> ["images/no_image.png", "images/no_image.png"]
 
 decodeImageTextList imageList =
   case imageList of
     Ok imageListResp ->
      List.map (\x -> ( x.text )) imageListResp
-    _ -> ["no image"]
+    _ -> ["no image", "no image2"]
 
 doFetchData : Cmd Msg
 doFetchData =
@@ -158,7 +159,7 @@ styling =
                 }
 
                 a {
-                    color: white;
+                    color: black;
                 }
 
                 #image-gallery {
