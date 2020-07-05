@@ -67,7 +67,10 @@ update msg model =
         ErrorOccurred errorMessage ->
           ( model, Cmd.none )
         DataFetched result ->
-          ( { model | urlList = decodeImageUrlList result, textList = decodeImageTextList result }
+          ( { model | urlList = decodeImageUrlList result,
+                      textList = decodeImageTextList result,
+                      textGallery = Gallery.init (List.length (decodeImageTextList result)),
+                      imageGallery = Gallery.init (List.length (decodeImageUrlList result))}
             , Cmd.none
           )
 
@@ -128,7 +131,7 @@ decodeImageUrlList imageList =
   case imageList of
     Ok imageListResp ->
      List.map (\x -> ( x.path )) imageListResp
-    _ -> ["/images/no_image.png"]
+    _ -> ["images/no_image.png"]
 
 decodeImageTextList imageList =
   case imageList of
